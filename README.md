@@ -20,8 +20,8 @@ deploy-note
 ```
 배포 시간
 
-milestones-test:2015-07-2310:00
-milestones-test:2015-07-2310:00
+milestones-test:2015-07-23 10:00
+milestones-test:2015-07-23 10:00
 
 
 배포 내역
@@ -52,5 +52,5 @@ milestones-test:1.0.0
 
 ## Known Bugs
 
-- <nil> 이 프린트되는 원인을 아직 못찾았다.
+- `<nil>` 이 프린트되는 원인을 아직 못찾았다.
 - 멘션자들이 합산되지 않는다..
