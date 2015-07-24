@@ -14,6 +14,8 @@ OWNER=heshed REPOS=milestones-test:milestones-test MILESTONE=1.0.0 deploy-note
 ```
 
 ### github enterprise
+
+```
 export GITHUB_URL=https://enterprise.github.com/api/v3/
 export CLIENT_ID=user 
 export CLIENT_SECRET=password 
@@ -21,6 +23,7 @@ export OWNER=heshed
 export REPOS=milestones-test:milestones-test
 export MILESTONE=1.0.0
 deploy-note
+```
 
 ## Result
 
