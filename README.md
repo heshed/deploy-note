@@ -5,15 +5,22 @@ deploy-note
 
 ```
 go get github.com/heshed/deploy-note
-
-ORGS=heshed REPOS=milestones-test:milestones-test MILESTONE=1.0.0 deploy-note
-
-# 또는
-ORGS=heshed
-REPOS=milestones-test:milestones-test
-MILESTONE=1.0.0
-deploy-note
 ```
+
+### github.com
+
+```
+OWNER=heshed REPOS=milestones-test:milestones-test MILESTONE=1.0.0 deploy-note
+```
+
+### github enterprise
+export GITHUB_URL=https://enterprise.github.com/api/v3/
+export CLIENT_ID=user 
+export CLIENT_SECRET=password 
+export OWNER=heshed
+export REPOS=milestones-test:milestones-test
+export MILESTONE=1.0.0
+deploy-note
 
 ## Result
 
@@ -36,8 +43,8 @@ milestones-test:2015-07-23 10:00
 
 배포 버전
 
-milestones-test:1.0.0
-milestones-test:1.0.0
+- milestones-test:1.0.0
+- milestones-test:1.0.0
 
 
 참조
@@ -52,5 +59,4 @@ milestones-test:1.0.0
 
 ## Known Bugs
 
-- `<nil>` 이 프린트되는 원인을 아직 못찾았다.
 - 멘션자들이 합산되지 않는다..
