@@ -288,7 +288,7 @@ func (g *GitHub) GetNotes(owner string, repo string, milestoneID string) (*Note,
 }
 
 func getUsage() string {
-	usage := `
+	usage := `# Usage :
 export GITHUB_URL=https://enterprise.github.com/api/v3/
 export CLIENT_ID=user
 export CLIENT_SECRET=password
@@ -314,7 +314,7 @@ func main() {
 	repos := os.Getenv("REPOS")
 
 	// check arguments..
-	if clientID == "" || clientSecret == "" || gitHubURL == "" || owner == "" || milestoneID == "" || repos == "" {
+	if gitHubURL == "" || owner == "" || milestoneID == "" || repos == "" {
 		fmt.Println(getUsage())
 		os.Exit(0)
 	}
