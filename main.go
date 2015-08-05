@@ -27,28 +27,28 @@ const (
 	headerRateReset     = "X-RateLimit-Reset"
 
 	noteTemplate = `
-{{ .DeployDate }} {{ Title }}
+{{ .DeployDate }} {{ .Title }}
 
-배포 시간
+## 배포 시간
 
 {{ .MilestoneDate }}
 
-배포 내역
+## 배포 내역
 
 {{ .IssueSummary }}
 
-배포 버전
+## 배포 버전
 
 {{ .RepoVersion }}
 
-참조
+## 참조
 
 {{ .MentionedPersons }}
 
 배포 공지
 
-통검프론트 :
-통검 공통 템플릿 :
+* 통검프론트 :
+* 통검 공통 템플릿 :
 `
 )
 
@@ -63,6 +63,7 @@ type Note struct {
 }
 
 func (n *Note) Merge(m *Note) {
+	n.DeployDate = m.DeployDate
 	n.MilestoneDate += m.MilestoneDate
 	n.IssueSummary += m.IssueSummary
 	n.RepoVersion += m.RepoVersion
@@ -278,7 +279,7 @@ func (g *GitHub) GetNotes(owner string, repo string, milestoneID string) (*Note,
 		*/
 
 		note.MilestoneDate = fmt.Sprintf("- %s:%s 10:00\n", repo, issue.Milestone.DueOn.Format("2006-01-02"))
-		note.DeployDate = issue.Milestone.DueOn.Format("2006.01.02"))
+		note.DeployDate = issue.Milestone.DueOn.Format("2006-01-02")
 	}
 
 	fmt.Println("after mention:", buf.String())
