@@ -10,7 +10,7 @@ go get github.com/heshed/deploy-note
 ### github.com
 
 ```
-OWNER=heshed REPOS=milestones-test:milestones-test MILESTONE=1.0.0 deploy-note
+OWNER=heshed REPOS=milestones-test:milestones-test MILESTONE_ID=1 deploy-note
 ```
 
 ### github enterprise
@@ -21,7 +21,7 @@ export CLIENT_ID=user
 export CLIENT_SECRET=password 
 export OWNER=heshed
 export REPOS=milestones-test:milestones-test
-export MILESTONE=1.0.0
+export MILESTONE_ID=1
 deploy-note
 ```
 
@@ -63,3 +63,7 @@ milestones-test:2015-07-23 10:00
 ## Known Bugs
 
 - 멘션자들이 합산되지 않는다..
+
+## 참고
+
+- https://developer.github.com/v3/enterprise/

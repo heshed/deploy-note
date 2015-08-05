@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/google/go-querystring/query"
 	"github.com/heshed/go-github/github"
+	"github.com/fatih/set"
 	"io"
 	"net/http"
 	"net/url"
@@ -16,6 +17,7 @@ import (
 	"text/template"
 	"time"
 	"log"
+	"bytes"
 )
 
 const (
@@ -25,6 +27,8 @@ const (
 	headerRateReset     = "X-RateLimit-Reset"
 
 	noteTemplate = `
+{{ .DeployDate }} {{ Title }}
+
 배포 시간
 
 {{ .MilestoneDate }}
@@ -40,7 +44,6 @@ const (
 참조
 
 {{ .MentionedPersons }}
-@@usf @lulu
 
 배포 공지
 
@@ -50,24 +53,29 @@ const (
 )
 
 type Note struct {
+	DeployDate		 string
+	Title			 string
 	MilestoneDate    string
 	IssueSummary     string
 	RepoVersion      string
 	MentionedPersons string
+	Mentioned		 set.Set
 }
 
-func (n *Note) Merge(m Note) {
+func (n *Note) Merge(m *Note) {
 	n.MilestoneDate += m.MilestoneDate
 	n.IssueSummary += m.IssueSummary
 	n.RepoVersion += m.RepoVersion
-	n.MentionedPersons += m.MentionedPersons
+	n.Mentioned.Merge(&m.Mentioned)
 }
 
+// TODO: parsing mentions
 func getMensionedPersons(body *string) string {
-	re := regexp.MustCompile(`.*관련 담당자 :.*`)
+	re := regexp.MustCompile(`.*관련 담당자 :(.*)`)
 	mentioned := re.FindString(*body)
 
-	return strings.Replace(mentioned, "관련 담당자 :", "", 1)
+	fmt.Println("find :", mentioned)
+	return mentioned
 }
 
 // addOptions adds the parameters in opt as URL query parameters to s.  opt
@@ -244,32 +252,54 @@ func (g *GitHub) ListByRepo(owner string, repo string, opt *github.IssueListByRe
 	return *issues, resp, err
 }
 
-func (g *GitHub) GetNotes(owner string, repo string, milestone string) (Note, error) {
-	opt := github.IssueListByRepoOptions{Milestone: milestone, State: "all"}
+func (g *GitHub) GetNotes(owner string, repo string, milestoneID string) (*Note, error) {
+	opt := github.IssueListByRepoOptions{Milestone: milestoneID, State: "all"}
 
-	var note Note
+	note := &Note{}
 	issues, _, err := g.ListByRepo(owner, repo, &opt)
 	if err != nil {
 		return note, err
 	}
 
+	var buf bytes.Buffer
+
 	for _, issue := range issues {
 		summary := fmt.Sprintf("- %v [%s #%d / %s](%s)\n", issue.Labels, repo, *issue.Number, *issue.Title, *issue.HTMLURL)
 		note.IssueSummary += summary
 
-		note.RepoVersion = fmt.Sprintf("- [%s:%s]\n", repo, *issue.Milestone.Title)
+		note.RepoVersion = fmt.Sprintf("- [%s:%s]()\n", repo, *issue.Milestone.Title)
 
+		// TODO: check Mentions
+		/*
 		m := getMensionedPersons(issue.Body)
 		if m != "" {
-			note.MentionedPersons += m
+			note.Mentioned.Add(m)
 		}
+		*/
 
-		note.MilestoneDate = fmt.Sprintf("- %s:%s 10:10\n", repo, issue.Milestone.DueOn.Format("2006-01-02"))
+		note.MilestoneDate = fmt.Sprintf("- %s:%s 10:00\n", repo, issue.Milestone.DueOn.Format("2006-01-02"))
+		note.DeployDate = issue.Milestone.DueOn.Format("2006.01.02"))
 	}
+
+	fmt.Println("after mention:", buf.String())
 
 	return note, nil
 }
 
+func getUsage() string {
+	usage := `
+export GITHUB_URL=https://enterprise.github.com/api/v3/
+export CLIENT_ID=user
+export CLIENT_SECRET=password
+export OWNER=heshed
+export REPOS=milestones-test:milestones-test
+export MILESTONE_ID=1
+deploy-note
+`
+	return usage
+}
+
+// TODO: classify by Labels
 func main() {
 	gitHubURL := baseGitHubURL
 	url := os.Getenv("GITHUB_URL")
@@ -279,8 +309,14 @@ func main() {
 	clientID := os.Getenv("CLIENT_ID")
 	clientSecret := os.Getenv("CLIENT_SECRET")
 	owner := os.Getenv("OWNER")
-	milestone := os.Getenv("MILESTONE")
+	milestoneID := os.Getenv("MILESTONE_ID")
 	repos := os.Getenv("REPOS")
+
+	// check arguments..
+	if clientID == "" || clientSecret == "" || gitHubURL == "" || owner == "" || milestoneID == "" || repos == "" {
+		fmt.Println(getUsage())
+		os.Exit(0)
+	}
 
 	var note Note
 	hub := GitHub{
@@ -288,13 +324,18 @@ func main() {
 		user:     clientID,
 		password: clientSecret,
 	}
+
+	// TODO: magic string
+	note.Title = "통합검색 배포 안내드립니다."
+
 	for _, repo := range strings.Split(repos, ":") {
-		n, err := hub.GetNotes(owner, repo, milestone)
+		n, err := hub.GetNotes(owner, repo, milestoneID)
 		if err != nil {
 			log.Fatalln("error: %v", err)
 		}
 		note.Merge(n)
 	}
+	note.MentionedPersons = note.Mentioned.String()
 
 	t := template.Must(template.New("note").Parse(noteTemplate))
 	err := t.Execute(os.Stdout, note)
