@@ -1,12 +1,14 @@
 package main
 
 import (
+	//"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/fatih/set"
 	"github.com/google/go-querystring/query"
 	"github.com/heshed/go-github/github"
-	"github.com/fatih/set"
 	"io"
+	"log"
 	"net/http"
 	"net/url"
 	"os"
@@ -16,8 +18,6 @@ import (
 	"strings"
 	"text/template"
 	"time"
-	"log"
-	"bytes"
 )
 
 const (
@@ -53,13 +53,13 @@ const (
 )
 
 type Note struct {
-	DeployDate		 string
-	Title			 string
+	DeployDate       string
+	Title            string
 	MilestoneDate    string
 	IssueSummary     string
 	RepoVersion      string
 	MentionedPersons string
-	Mentioned		 set.Set
+	Mentioned        set.Interface
 }
 
 func (n *Note) Merge(m *Note) {
@@ -67,16 +67,20 @@ func (n *Note) Merge(m *Note) {
 	n.MilestoneDate += m.MilestoneDate
 	n.IssueSummary += m.IssueSummary
 	n.RepoVersion += m.RepoVersion
-	n.Mentioned.Merge(&m.Mentioned)
+	n.Mentioned.Merge(m.Mentioned)
 }
 
 // TODO: parsing mentions
 func getMensionedPersons(body *string) string {
 	re := regexp.MustCompile(`.*관련 담당자 :(.*)`)
-	mentioned := re.FindString(*body)
+	matches := re.FindStringSubmatch(*body)
 
-	fmt.Println("find :", mentioned)
-	return mentioned
+	if len(matches) == 2 {
+		// fmt.Println("matches :", matches[1])
+		return strings.TrimSpace(matches[1])
+	}
+
+	return ""
 }
 
 // addOptions adds the parameters in opt as URL query parameters to s.  opt
@@ -262,7 +266,8 @@ func (g *GitHub) GetNotes(owner string, repo string, milestoneID string) (*Note,
 		return note, err
 	}
 
-	var buf bytes.Buffer
+	note.Mentioned = set.New(set.NonThreadSafe)
+	//var buf bytes.Buffer
 
 	for _, issue := range issues {
 		summary := fmt.Sprintf("- %v [%s #%d / %s](%s)\n", issue.Labels, repo, *issue.Number, *issue.Title, *issue.HTMLURL)
@@ -271,18 +276,29 @@ func (g *GitHub) GetNotes(owner string, repo string, milestoneID string) (*Note,
 		note.RepoVersion = fmt.Sprintf("- [%s:%s]()\n", repo, *issue.Milestone.Title)
 
 		// TODO: check Mentions
-		/*
 		m := getMensionedPersons(issue.Body)
 		if m != "" {
-			note.Mentioned.Add(m)
-		}
-		*/
+			ids := strings.Split(m, " ")
+			// fmt.Println("******** m : ", m)
+			// fmt.Println("******** ids : ", ids)
 
-		note.MilestoneDate = fmt.Sprintf("- %s:%s 10:00\n", repo, issue.Milestone.DueOn.Format("2006-01-02"))
-		note.DeployDate = issue.Milestone.DueOn.Format("2006-01-02")
+			for i := range ids {
+				id := strings.TrimRight(ids[i], ",")
+				note.Mentioned.Add(id)
+				// fmt.Println("******** id : ", id)
+			}
+		}
+
+		// TODO 하루 전 날로 나올까? (지금은 +1 해줬다)
+		//note.MilestoneDate = fmt.Sprintf("- %s:%s 10:00\n", repo, issue.Milestone.DueOn.Format("2006-01-02"))
+		note.MilestoneDate = fmt.Sprintf("- %s:%s 10:00\n", repo, issue.Milestone.DueOn.AddDate(0,0,1).Format("2006-01-02"))
+		//note.DeployDate = issue.Milestone.DueOn.Format("2006-01-02")
+		note.DeployDate = issue.Milestone.DueOn.AddDate(0,0,1).Format("2006-01-02")
+
+		//fmt.Println("DeployDate ", note.DeployDate)
 	}
 
-	fmt.Println("after mention:", buf.String())
+	//fmt.Println("after mention:", buf.String())
 
 	return note, nil
 }
@@ -328,6 +344,7 @@ func main() {
 
 	// TODO: magic string
 	note.Title = "통합검색 배포 안내드립니다."
+	note.Mentioned = set.New(set.NonThreadSafe)
 
 	for _, repo := range strings.Split(repos, ":") {
 		n, err := hub.GetNotes(owner, repo, milestoneID)
@@ -336,7 +353,8 @@ func main() {
 		}
 		note.Merge(n)
 	}
-	note.MentionedPersons = note.Mentioned.String()
+
+	note.MentionedPersons = fmt.Sprintf("- %v", strings.Trim(note.Mentioned.String(), "[]"))
 
 	t := template.Must(template.New("note").Parse(noteTemplate))
 	err := t.Execute(os.Stdout, note)
